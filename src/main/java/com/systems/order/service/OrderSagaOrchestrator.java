@@ -11,32 +11,29 @@ import com.systems.order.exception.BusinessException;
 import com.systems.order.exception.ErrorCode;
 import com.systems.order.repository.OrderRepository;
 import io.github.resilience4j.retry.annotation.Retry;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @Slf4j
+@RequiredArgsConstructor
 public class OrderSagaOrchestrator {
     private final OrderRepository orderRepository;
-    private final PaymentClient paymentClient;
-    
-    public OrderSagaOrchestrator(OrderRepository orderRepository, PaymentClient paymentClient) {
-        this.orderRepository = orderRepository;
-        this.paymentClient = paymentClient;
-    }
-    
+    private final PaymentService paymentService;
+
     @Transactional
-    public OrderResponse executeOrderSaga(OrderRequest request) {
+    public OrderResponse executeOrderSaga(OrderRequest request, Long userId) {
         log.info("Starting SAGA orchestration for order");
         
         // Step 1: Create Order
-        Order order = createOrder(request);
+        Order order = createOrder(request, userId);
         log.info("Order created with ID: {}", order.getId());
         
         // Step 2: Process Payment with Retry
         try {
-            PaymentResponse paymentResponse = processPaymentWithRetry(order);
+            PaymentResponse paymentResponse = paymentService.processPaymentWithRetry(order);
             order.setPaymentId(paymentResponse.paymentId());
             order.setStatus(OrderStatus.COMPLETED);
             log.info("Payment successful for order: {}, paymentId: {}", order.getId(), paymentResponse.paymentId());
@@ -50,41 +47,15 @@ public class OrderSagaOrchestrator {
         return toResponse(order);
     }
     
-    private Order createOrder(OrderRequest request) {
+    private Order createOrder(OrderRequest request, Long userId) {
         log.debug("Creating order entity");
         Order order = new Order();
-        order.setCustomerId(request.customerId());
+        order.setCustomerId(userId.toString());
         order.setProductId(request.productId());
         order.setQuantity(request.quantity());
         order.setAmount(request.amount());
         order.setStatus(OrderStatus.PENDING);
         return orderRepository.save(order);
-    }
-    
-    @Retry(name = "paymentRetry", fallbackMethod = "paymentFallback")
-    private PaymentResponse processPaymentWithRetry(Order order) {
-        log.info("Attempting payment for order: {}", order.getId());
-        order.setStatus(OrderStatus.FAILED);
-        orderRepository.save(order);
-        
-        try {
-            PaymentRequest paymentRequest = new PaymentRequest(
-                order.getId(),
-                order.getAmount(),
-                order.getCustomerId()
-            );
-            PaymentResponse response = paymentClient.processPayment(paymentRequest);
-            log.info("Payment processed successfully for order: {}", order.getId());
-            return response;
-        } catch (Exception ex) {
-            log.warn("Payment attempt failed for order: {}, will retry", order.getId());
-            throw new BusinessException(ErrorCode.PAYMENT_SERVICE_UNAVAILABLE, "Payment service call failed");
-        }
-    }
-    
-    private PaymentResponse paymentFallback(Order order, Exception e) {
-        log.error("Payment fallback triggered for order: {} after max retries", order.getId());
-        throw new BusinessException(ErrorCode.PAYMENT_FAILED, "Payment failed after maximum retries");
     }
     
     private OrderResponse toResponse(Order order) {

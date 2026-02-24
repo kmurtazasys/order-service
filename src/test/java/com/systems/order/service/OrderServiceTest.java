@@ -45,17 +45,17 @@ class OrderServiceTest {
     
     @Test
     void processOrder_ValidRequest() {
-        OrderRequest request = new OrderRequest("cust1", "prod1", 2, BigDecimal.TEN);
+        OrderRequest request = new OrderRequest("prod1", 2, BigDecimal.TEN);
         
-        orderService.processOrder(request);
+        orderService.processOrder(request, 1L);
         
-        verify(sagaOrchestrator).executeOrderSaga(request);
+        verify(sagaOrchestrator).executeOrderSaga(request, 1L);
     }
     
     @Test
     void processOrder_InvalidRequest() {
-        OrderRequest request = new OrderRequest(null, "prod1", 2, BigDecimal.TEN);
+        OrderRequest request = new OrderRequest("prod1", 2, BigDecimal.TEN);
         
-        assertThrows(IllegalArgumentException.class, () -> orderService.processOrder(request));
+        assertThrows(IllegalArgumentException.class, () -> orderService.processOrder(request, 1L));
     }
 }

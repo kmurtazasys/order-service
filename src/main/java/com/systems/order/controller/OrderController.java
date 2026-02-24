@@ -5,12 +5,14 @@ import com.systems.order.dto.OrderResponse;
 import com.systems.order.service.OrderService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/orders")
+@RequestMapping("/api/v1/orders")
 @Slf4j
 public class OrderController {
     private final OrderService orderService;
@@ -26,10 +28,12 @@ public class OrderController {
         return orderService.getAllOrders();
     }
     
-    @PostMapping("/process")
+    @PostMapping
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-    public OrderResponse processOrder(@RequestBody OrderRequest request) {
-        log.info("Request to process order for customer: {}", request.customerId());
-        return orderService.processOrder(request);
+    public OrderResponse processOrder(@RequestBody OrderRequest request,
+                                      @AuthenticationPrincipal Jwt jwt) {
+        Long userId = jwt.getClaim("userId");
+        log.info("Request to process order for customer: {}", userId);
+        return orderService.processOrder(request, userId);
     }
 }

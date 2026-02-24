@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @Slf4j
@@ -37,24 +38,21 @@ public class OrderService {
     }
     
     @Transactional
-    public OrderResponse processOrder(OrderRequest request) {
-        log.info("Processing order for customer: {}", request.customerId());
+    public OrderResponse processOrder(OrderRequest request, Long userId) {
+        log.info("Processing order for customer: {}", userId);
         try {
             validateRequest(request);
-            OrderResponse response = sagaOrchestrator.executeOrderSaga(request);
+            OrderResponse response = sagaOrchestrator.executeOrderSaga(request, userId);
             log.info("Order processed successfully: {}", response.id());
             return response;
         } catch (Exception ex) {
-            log.error("Failed to process order for customer: {}", request.customerId(), ex);
+            log.error("Failed to process order for customer: {}", userId, ex);
             throw ex;
         }
     }
     
     private void validateRequest(OrderRequest request) {
         log.debug("Validating order request");
-        if (request.customerId() == null || request.customerId().isBlank()) {
-            throw new IllegalArgumentException("Customer ID is required");
-        }
         if (request.productId() == null || request.productId().isBlank()) {
             throw new IllegalArgumentException("Product ID is required");
         }
