@@ -13,6 +13,7 @@ import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
 import javax.crypto.SecretKey;
@@ -25,57 +26,27 @@ import java.util.stream.Collectors;
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    private static final String ALGO = "HmacSHA256";
-
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(AbstractHttpConfigurer::disable)
-                .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(auth -> auth
                         .anyRequest().authenticated()
                 )
-                .oauth2ResourceServer(oauth2 ->
-                        oauth2.jwt(jwt ->
-                                jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())
-                        )
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
                 );
-
         return http.build();
     }
 
     @Bean
     public JwtAuthenticationConverter jwtAuthenticationConverter() {
+        JwtGrantedAuthoritiesConverter authoritiesConverter = new JwtGrantedAuthoritiesConverter();
+        // This MUST match the claim name you used in your user-service TokenCustomizer
+        authoritiesConverter.setAuthoritiesClaimName("roles");
+        authoritiesConverter.setAuthorityPrefix("");
 
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
-
-        converter.setJwtGrantedAuthoritiesConverter(jwt -> {
-            List<String> roles = jwt.getClaimAsStringList("roles");
-
-            if (roles == null) {
-                return List.of();
-            }
-
-            return roles.stream()
-                    .map(SimpleGrantedAuthority::new)
-                    .collect(Collectors.toList());
-        });
-
+        converter.setJwtGrantedAuthoritiesConverter(authoritiesConverter);
         return converter;
-    }
-
-    @Bean
-    public JwtDecoder jwtDecoder(@Value("${jwt.secret}") String secret) {
-
-        SecretKey secretKey = new SecretKeySpec(
-                secret.getBytes(StandardCharsets.UTF_8),
-                ALGO
-        );
-
-        return NimbusJwtDecoder
-                .withSecretKey(secretKey)
-                .macAlgorithm(MacAlgorithm.HS256)
-                .build();
     }
 }
