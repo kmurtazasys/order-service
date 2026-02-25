@@ -38,7 +38,7 @@ public class OrderService {
     }
     
     @Transactional
-    public OrderResponse processOrder(OrderRequest request, Long userId) {
+    public OrderResponse processOrder(OrderRequest request, String userId) {
         log.info("Processing order for customer: {}", userId);
         try {
             validateRequest(request);

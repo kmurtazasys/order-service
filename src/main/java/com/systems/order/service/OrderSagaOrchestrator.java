@@ -24,7 +24,7 @@ public class OrderSagaOrchestrator {
     private final PaymentService paymentService;
 
     @Transactional
-    public OrderResponse executeOrderSaga(OrderRequest request, Long userId) {
+    public OrderResponse executeOrderSaga(OrderRequest request, String userId) {
         log.info("Starting SAGA orchestration for order");
         
         // Step 1: Create Order
@@ -47,10 +47,10 @@ public class OrderSagaOrchestrator {
         return toResponse(order);
     }
     
-    private Order createOrder(OrderRequest request, Long userId) {
+    private Order createOrder(OrderRequest request, String userId) {
         log.debug("Creating order entity");
         Order order = new Order();
-        order.setCustomerId(userId.toString());
+        order.setCustomerId(userId);
         order.setProductId(request.productId());
         order.setQuantity(request.quantity());
         order.setAmount(request.amount());

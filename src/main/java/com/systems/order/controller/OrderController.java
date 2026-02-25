@@ -32,7 +32,7 @@ public class OrderController {
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public OrderResponse processOrder(@RequestBody OrderRequest request,
                                       @AuthenticationPrincipal Jwt jwt) {
-        Long userId = jwt.getClaim("userId");
+        String userId = jwt.getClaim("id");
         log.info("Request to process order for customer: {}", userId);
         return orderService.processOrder(request, userId);
     }
